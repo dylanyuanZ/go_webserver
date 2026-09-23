@@ -1,0 +1,19 @@
+# 服务配置示例
+#
+# 本文件仅作文档参考：服务实际通过环境变量读取配置，
+# 部署时按此映射设置环境变量即可。
+#
+#   server.addr            -> APP_ADDR
+#   server.read_timeout    -> APP_READ_TIMEOUT
+#   server.write_timeout   -> APP_WRITE_TIMEOUT
+#   server.shutdown_timeout-> APP_SHUTDOWN_TIMEOUT
+
+server:
+  addr: ":8080"
+  read_timeout: 5s
+  write_timeout: 10s
+  shutdown_timeout: 10s
+
+log:
+  level: info
+  format: json
