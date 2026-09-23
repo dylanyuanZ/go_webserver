@@ -5,10 +5,10 @@
 
 ## 特性
 
-- 零第三方依赖，仅用标准库，`go run` 立即可跑
+- 极少依赖（仅 `gopkg.in/yaml.v3`），`go run` 立即可跑
 - 标准 Go 项目布局（`cmd/` + `internal/` + `pkg/`）
 - HTTP 服务骨架：路由注册、超时配置、优雅关闭、健康检查
-- 配置通过环境变量注入，`configs/config.yaml` 为示例
+- 配置支持 YAML 文件 + 环境变量覆盖（env 优先）
 - 内置 AI 开发工作流：需求澄清 → 系统设计 → 代码生成 → 测试生成 → 代码评审 → 代码提交
 
 ## 快速开始
@@ -34,24 +34,52 @@ make test
 | `GET /healthz` | 健康检查，返回 `{"status":"ok"}` |
 | `GET /` | 服务信息 |
 
-可通过环境变量覆盖：
+## 配置
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `APP_ADDR` | `:8080` | 监听地址 |
-| `APP_READ_TIMEOUT` | `5s` | 读超时 |
-| `APP_WRITE_TIMEOUT` | `10s` | 写超时 |
-| `APP_SHUTDOWN_TIMEOUT` | `10s` | 优雅关闭等待时间 |
+**唯一配置来源是 YAML 文件**，启动时用 `-config` 指定路径（默认 `configs/config.yaml`）:
+
+```bash
+go run ./cmd/server -config configs/config.yaml
+go run ./cmd/server -config /etc/myapp/config.yaml
+```
+
+```yaml
+# configs/config.yaml
+server:
+  addr: ":8080"
+  read_timeout: 5s
+  write_timeout: 10s
+  shutdown_timeout: 10s
+log:
+  level: info    # debug | info | warn | error
+  format: json   # json | text
+```
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `server.addr` | `:8080` | 监听地址 |
+| `server.read_timeout` | `5s` | 读超时 |
+| `server.write_timeout` | `10s` | 写超时 |
+| `server.shutdown_timeout` | `10s` | 优雅关闭等待时间 |
+| `log.level` | `info` | 日志级别 |
+| `log.format` | `json` | 日志格式 |
+
+要点：
+
+- 配置文件**缺失或不可读会直接启动失败**，不会静默用默认值跑起来
+- 文件里省略的字段回落默认值；**未知字段会直接报错**，避免拼写错误被忽略
+- 时间字段写 `5s` / `300ms` 这类 Go duration 字符串
+- 不同环境用不同文件（`config.dev.yaml` / `config.prod.yaml`），而不是环境变量
 
 ## 目录结构
 
 | 目录 | 说明 |
 |------|------|
 | `cmd/server` | 程序入口，`main` 包 |
-| `internal/config` | 配置加载 |
+| `internal/config` | 配置加载（YAML + 环境变量） |
 | `internal/server` | HTTP 服务与路由 |
 | `pkg/` | 可被外部项目复用的公共库 |
-| `configs/` | 配置文件示例 |
+| `configs/` | 配置文件（运行时读取） |
 | `scripts/` | 构建与运维脚本 |
 | `docs/design/<feature>/` | 设计文档（`spec.md`、`tasks.md`） |
 | `test/` | 跨包集成测试与测试数据 |

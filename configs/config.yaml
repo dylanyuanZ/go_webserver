@@ -1,19 +1,17 @@
-# 服务配置示例
+# 服务配置文件
 #
-# 本文件仅作文档参考：服务实际通过环境变量读取配置，
-# 部署时按此映射设置环境变量即可。
+# 这是唯一的配置来源，启动时通过 -config 参数指定路径：
+#   go run ./cmd/server -config configs/config.yaml
 #
-#   server.addr            -> APP_ADDR
-#   server.read_timeout    -> APP_READ_TIMEOUT
-#   server.write_timeout   -> APP_WRITE_TIMEOUT
-#   server.shutdown_timeout-> APP_SHUTDOWN_TIMEOUT
+# 省略的字段回落到内置默认值（见 internal/config 的 Default* 常量）。
+# 未知字段会导致启动失败，避免拼写错误被静默忽略。
 
 server:
-  addr: ":8080"
-  read_timeout: 5s
-  write_timeout: 10s
-  shutdown_timeout: 10s
+  addr: ":8080"            # 监听地址
+  read_timeout: 5s         # 读超时
+  write_timeout: 10s       # 写超时
+  shutdown_timeout: 10s    # 优雅关闭等待时间
 
 log:
-  level: info
-  format: json
+  level: info              # debug | info | warn | error
+  format: json             # json | text

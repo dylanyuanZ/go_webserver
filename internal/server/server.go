@@ -31,10 +31,10 @@ func New(cfg *config.Config, logger *slog.Logger) *Server {
 		cfg:    cfg,
 		logger: logger,
 		http: &http.Server{
-			Addr:         cfg.Addr,
+			Addr:         cfg.Server.Addr,
 			Handler:      mux,
-			ReadTimeout:  cfg.ReadTimeout,
-			WriteTimeout: cfg.WriteTimeout,
+			ReadTimeout:  cfg.Server.ReadTimeout,
+			WriteTimeout: cfg.Server.WriteTimeout,
 		},
 	}
 }
@@ -42,9 +42,9 @@ func New(cfg *config.Config, logger *slog.Logger) *Server {
 // Start listens and serves until the server is shut down.
 // It returns http.ErrServerClosed on graceful shutdown.
 func (s *Server) Start() error {
-	ln, err := net.Listen("tcp", s.cfg.Addr)
+	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
 	if err != nil {
-		return fmt.Errorf("server: listen %s: %w", s.cfg.Addr, err)
+		return fmt.Errorf("server: listen %s: %w", s.cfg.Server.Addr, err)
 	}
 	if err := s.http.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("server: serve: %w", err)
@@ -54,17 +54,17 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully stops the server, waiting at most cfg.ShutdownTimeout.
 func (s *Server) Shutdown(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.Server.ShutdownTimeout)
 	defer cancel()
 
 	if err := s.http.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server: shutdown: %w", err)
 	}
-	s.logger.Info("server shutdown completed", "grace", s.cfg.ShutdownTimeout.String())
+	s.logger.Info("server shutdown completed", "grace", s.cfg.Server.ShutdownTimeout.String())
 	return nil
 }
 
 // Addr returns the configured listen address.
 func (s *Server) Addr() string {
-	return s.cfg.Addr
+	return s.cfg.Server.Addr
 }

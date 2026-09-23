@@ -4,32 +4,35 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/your-org/go_webserver/internal/config"
 	"github.com/your-org/go_webserver/internal/server"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
+	configPath := flag.String("config", config.DefaultFile, "path to the YAML config file")
+	flag.Parse()
 
-	cfg, err := config.Load()
+	cfg, err := config.Load(*configPath)
 	if err != nil {
-		slog.Error("load config failed", "error", err)
+		slog.Error("load config failed", "error", err, "path", *configPath)
 		os.Exit(1)
 	}
+
+	logger := newLogger(cfg)
+	slog.SetDefault(logger)
 
 	srv := server.New(cfg, logger)
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("server starting", "addr", cfg.Addr)
+		logger.Info("server starting", "addr", cfg.Server.Addr, "config", *configPath)
 		if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
@@ -43,18 +46,32 @@ func main() {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			slog.Error("server exited with error", "error", err)
+			logger.Error("server exited with error", "error", err)
 			os.Exit(1)
 		}
 	case sig := <-quit:
-		slog.Info("shutdown signal received", "signal", sig.String())
-		ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		logger.Info("shutdown signal received", "signal", sig.String())
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
-			slog.Error("graceful shutdown failed", "error", err)
+			logger.Error("graceful shutdown failed", "error", err)
 			os.Exit(1)
 		}
 	}
 
-	slog.Info("server stopped", "after", time.Now().Format(time.RFC3339))
+	logger.Info("server stopped")
+}
+
+// newLogger builds a slog.Logger from the logging configuration.
+func newLogger(cfg *config.Config) *slog.Logger {
+	level, err := config.ParseLogLevel(cfg.Log.Level)
+	if err != nil {
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{Level: level}
+	if cfg.Log.Format == "text" {
+		return slog.New(slog.NewTextHandler(os.Stdout, opts))
+	}
+	return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 }
